@@ -15,17 +15,31 @@
 
 #' Read fst or HDD files as DT
 #'
-#' This is the function \code{\link[fst]{read_fst}} but with automatic conversion to data.table. It also allows to read \code{hdd} data.
+#' This is the function \code{\link[fst]{read_fst}} but with automatic conversion 
+#' to data.table. It also allows to read \code{hdd} data.
 #'
 #' @inherit hdd seealso
 #'
-#' @param path Path to \code{fst} file -- or path to \code{hdd} data. For hdd files, there is a
-#' @param columns Column names to read. The default is to read all columns. Ignored for \code{hdd} files.
+#' @param path Path to \code{fst} file -- or path to \code{hdd} data. For hdd files, 
+#' there is a
+#' @param columns Column names to read. The default is to read all columns. Ignored 
+#' for \code{hdd} files.
 #' @param from Read data starting from this row number. Ignored for \code{hdd} files.
-#' @param to Read data up until this row number. The default is to read to the last row of the stored data set. Ignored for \code{hdd} files.
-#' @param confirm If the hdd file is larger than the variable \code{getHdd_extract.cap()}, then by default an error is raised. To anyway read the data, use \code{confirm = TRUE}. You can set the data cap with the function \code{\link[hdd]{setHdd_extract.cap}}, the default being 1GB.
-#'
+#' @param to Read data up until this row number. The default is to read to the last 
+#' row of the stored data set. Ignored for \code{hdd} files.
+#' @param confirm If the HDD file is larger than ten times the variable \code{getHdd_extract.cap()}, 
+#' then by default an error is raised. To anyway read the data, use \code{confirm = TRUE}. 
+#' You can set the data cap with the function \code{\link[hdd]{setHdd_extract.cap}}.
+#' 
 #' @author Laurent Berge
+#' 
+#' @details 
+#' This function reads one or several `.fst` files and place them in a single 
+#' data table.  
+#' 
+#' @return 
+#' This function returns a data table located in memory. It allows to read in memory
+#' the `hdd` data saved on disk.
 #'
 #' @examples
 #'
@@ -47,10 +61,10 @@ readfst = function(path, columns = NULL, from = 1, to = NULL, confirm = FALSE){
 	# it avoids adding as.data.table = TRUE
 	# + reads hdd files
 
-	check_arg(path, "singleCharacter")
-	check_arg(from, "singleIntegerGE1")
-	check_arg(to, "nullSingleIntegerGE1")
-	check_arg(confirm, "singleLogical")
+	check_arg(path, "character scalar")
+	check_arg(from, "integer scalar GE{1}")
+	check_arg(to, "null integer scalar GE{1}")
+	check_arg(confirm, "logical scalar")
 
 	if(grepl("\\.fst", path)){
 
@@ -76,13 +90,20 @@ readfst = function(path, columns = NULL, from = 1, to = NULL, confirm = FALSE){
 		mc = match.call()
 		qui_pblm = intersect(names(mc), c("columns", "from", "to"))
 		if(length(qui_pblm) > 0){
-			stop("When 'path' leads to a HDD file, the full data set is read. Thus the argument", enumerate_items(qui_pblm, addS = TRUE), " ignored: for sub-selections use hdd(path) instead.")
+			stop("When 'path' leads to a HDD file, the full data set is read. Thus the argument", 
+			     enumerate_items(qui_pblm, "s.is"), " ignored: for sub-selections use hdd(path) instead.")
 		}
 
 		res_size = object_size(res) / 1e6
-		size_cap = getHdd_extract.cap()
-		if(res_size > size_cap && isFALSE(confirm)){
-			stop("Currently the size of the hdd data is ", numberFormat(res_size), "MB which exceeds the cap of ", size_cap, "MB. Please use argument 'confirm' to proceed.")
+		size_cap = getHdd_extract.cap() * 10
+		if(res_size > size_cap && isFALSE(confirm) && interactive()){
+			cat("The size of the hdd data is ", numberFormat(res_size), " MB, greater than the 'no-confirm' cap of ",
+				  addCommas(size_cap), " MB. Use `confirm = TRUE` to bypass confirmation. ",
+				  "FYI you can change the cap using setHdd_extract.cap(new_cap).", sep = "")
+			confirm = get_confirmation()
+			if(isFALSE(confirm)){
+				return(invisible(NULL))
+			}
 		}
 
 		res = res[]
@@ -168,10 +189,10 @@ hdd_slice = function(x, fun, dir, chunkMB = 500, rowsPerChunk, replace = FALSE, 
 		stop("Argument 'fun' must be a function. Currently its class is ", class(fun)[[1]], ".")
 	}
 
-	check_arg(dir, "singleCharacterMbt")
-	check_arg(chunkMB, "singleNumericGT0")
-	check_arg(rowsPerChunk, "singleIntegerGE1")
-	check_arg(replace, "singleLogical")
+	check_arg(dir, "character scalar mbt")
+	check_arg(chunkMB, "numeric scalar GT{0}")
+	check_arg(rowsPerChunk, "integer scalar GE{1}")
+	check_arg(replace, "logical scalar")
 
 	if(is.null(dim(x))){
 		isTable = FALSE
@@ -271,27 +292,48 @@ hdd_slice = function(x, fun, dir, chunkMB = 500, rowsPerChunk, replace = FALSE, 
 
 #' Hard drive data set
 #'
-#' This function connects to a hard drive data set (HDD). You can access the hard drive data in a similar way to a \code{data.table}.
+#' This function connects to a hard drive data set (HDD). You can access the hard 
+#' drive data in a similar way to a \code{data.table}.
 #'
 #' @param dir The directory where the hard drive data set is.
 #'
 #' @author Laurent Berge
 #'
 #' @details
-#' HDD has been created to deal with out of memory data sets. The data set exists in the hard drive, split in multiple files -- each file being workable in memory.
+#' HDD has been created to deal with out of memory data sets. The data set exists 
+#' in the hard drive, split in multiple files -- each file being workable in memory.
 #'
-#' You can perform extraction and manipulation operations as with a regular data set with \code{\link[hdd]{sub-.hdd}}. Each operation is performed chunk-by-chunk behind the scene.
+#' You can perform extraction and manipulation operations as with a regular data 
+#' set with \code{\link[hdd]{sub-.hdd}}. Each operation is performed chunk-by-chunk 
+#' behind the scene.
 #'
-#' In terms of performance, working with complete data sets in memory will always be faster. This is because read/write operations on disk are order of magnitude slower than read/write in memory. However, this might be the only way to deal with out of memory data.
+#' In terms of performance, working with complete data sets in memory will always 
+#' be faster. This is because read/write operations on disk are order of magnitude 
+#' slower than read/write in memory. However, this might be the only way to deal 
+#' with out of memory data.
+#' 
+#' @return 
+#' This function returns an object of class `hdd` which is linked to 
+#' a folder on disk containing the data. The data is not loaded in R. 
+#' 
+#' This object is not intended to be interacted with directly as a regular list. Please use the methods
+#' \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}} to extract the data. 
+#' 
 #'
 #' @seealso
-#' See \code{\link[hdd]{hdd}}, \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}} for the extraction and manipulation of out of memory data. For importation of HDD data sets from text files: see \code{\link[hdd]{txt2hdd}}.
+#' See \code{\link[hdd]{hdd}}, \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}} 
+#' for the extraction and manipulation of out of memory data. For importation of 
+#' HDD data sets from text files: see \code{\link[hdd]{txt2hdd}}.
 #'
-#' See \code{\link[hdd]{hdd_slice}} to apply functions to chunks of data (and create HDD objects) and \code{\link[hdd]{hdd_merge}} to merge large files.
+#' See \code{\link[hdd]{hdd_slice}} to apply functions to chunks of data (and create 
+#' HDD objects) and \code{\link[hdd]{hdd_merge}} to merge large files.
 #'
-#' To create/reshape HDD objects from memory or from other HDD objects, see \code{\link[hdd]{write_hdd}}.
+#' To create/reshape HDD objects from memory or from other HDD objects, see 
+#' \code{\link[hdd]{write_hdd}}.
 #'
-#' To display general information from HDD objects: \code{\link[hdd]{origin}}, \code{\link[hdd]{summary.hdd}}, \code{\link[hdd]{print.hdd}}, \code{\link[hdd]{dim.hdd}} and \code{\link[hdd]{names.hdd}}.
+#' To display general information from HDD objects: \code{\link[hdd]{origin}}, 
+#' \code{\link[hdd]{summary.hdd}}, \code{\link[hdd]{print.hdd}}, 
+#' \code{\link[hdd]{dim.hdd}} and \code{\link[hdd]{names.hdd}}.
 #'
 #' @examples
 #'
@@ -324,7 +366,7 @@ hdd = function(dir){
 	# This function creates a link to a repository containing fst files
 	# NOTA: The HDD files are all named "sliceXX.fst"
 
-	check_arg(dir, "singleCharacterMbt")
+	check_arg(dir, "character scalar mbt")
 	dir = clean_path(dir)
 
 	# The directory + prefix
@@ -359,8 +401,6 @@ hdd = function(dir){
 	}
 
 	info_files = data.table(.nrow = all_row, .row_cum = cumsum(all_row), .ncol = all_col, .size = all_sizes, .size_cum = cumsum(all_sizes), .fileName = all_files)
-
-	# class(info_files) = c("hdd", "data.table", "data.frame")
 
 	# the result is the first 5 rows!
 	res = read_fst(info_files$.fileName[1], to = 5, as.data.table = TRUE)
@@ -471,10 +511,10 @@ hdd = function(dir){
 	mc = match.call()
 	call_txt = deparse_long(mc)
 
-	# check_arg(file, "integerVector")
-	check_arg(newfile, "singleCharacter", "Argument 'newfile' must be a valid path to a directory. REASON")
-	check_arg(replace, "singleLogical")
-	check_arg(all.vars, "singleLogical")
+	# check_arg(file, "integer vector")
+	check_arg(newfile, "character scalar", .message = "Argument 'newfile' must be a valid path to a directory.")
+	check_arg(replace, "logical scalar")
+	check_arg(all.vars, "logical scalar")
 
 	mc_small = mc[!names(mc) %in% c("x", "index", "file", "all.vars")]
 	if(all.vars || length(mc_small) == 1){
@@ -516,7 +556,7 @@ hdd = function(dir){
 	# 		} else if(length(vars_by) == 1 && vars_by == key[1]) {
 	# 			# fine (I take that case into account in hdd_setkey())
 	# 		} else {
-	# 			message("Note that the '", clause, "' clause is applied chunk by chunk, this is not a '", clause, "' on the whole data set. Currently the key", enumerate_items(key, addS = TRUE, start_verb = TRUE), " while the ", clause, " clause requires ", enumerate_items(vars_by, verb = FALSE), ". You may have to re-run hdd_setkey().")
+	# 			message("Note that the '", clause, "' clause is applied chunk by chunk, this is not a '", clause, "' on the whole data set. Currently the key", enumerate_items(key, "s.is.start"), " while the ", clause, " clause requires ", enumerate_items(vars_by), ". You may have to re-run hdd_setkey().")
 	# 		}
 	# 	} else {
 	# 		message("Note that the '", clause, "' clause is applied chunk by chunk, this is not a '", clause, "' on the whole data set. To have a result on the 'whole' data set, the data must be sorted beforehand with hdd_setkey() on the appropriate key.")
@@ -569,7 +609,10 @@ hdd = function(dir){
 
 			if(missing(index)){
 				# easy case
+				# cat("i = ", i, sep = "")
+				p = proc.time()
 				x_tmp = read_fst(fileName, as.data.table = TRUE, columns = var2select)
+				# cat(", in ", (proc.time()-p)[3], "s.\n", sep = "")
 				res[[i]] = x_tmp[, ...]
 			} else {
 				# now we have to see if it's worth of downloading everything
@@ -817,16 +860,16 @@ hdd = function(dir){
 #' # we can extract the data from the 11 files with '$':
 #' pl = base_hdd$Sepal.Length
 #'
-#' \donttest{
 #' #
 #' # Illustration of the protection mechanism:
 #' #
 #'
-#' # By default you cannot extract a variable with '$'
-#' # when its size would be too large (default is greater than 1000MB)
+#' # By default when extracting a variable with '$'
+#' # and the size exceeds the cap (default is greater than 3GB)
+#' # a confirmation is needed.
 #' # You can set the cap with setHdd_extract.cap.
 #'
-#' # Following code raises an error:
+#' # Following asks for confirmation in interactive mode:
 #' setHdd_extract.cap(sizeMB = 0.005) # new cap of 5KB
 #' pl = base_hdd$Sepal.Length
 #'
@@ -835,9 +878,9 @@ hdd = function(dir){
 #'
 #' # Resetting the default cap
 #' setHdd_extract.cap()
-#' }
 #'
 "$.hdd" = function(x, name){
+	#### $.hdd ####
 
 	# meta information
 	meta_vars = c(".nrow", ".row_cum", ".ncol", ".size", ".size_cum", ".fileName")
@@ -893,8 +936,15 @@ hdd = function(dir){
 	current_sizeMB = current_size / 1e6
 
 	size_cap = getHdd_extract.cap()
-	if(current_sizeMB > size_cap){
-		stop("Cannot extract variable ", name, " because its ", ifelse(TRUE_SIZE, "", " approximated "), "size (", addCommas(mysignif(current_sizeMB, r = 0)), " MB) is greater than the cap of ", addCommas(size_cap), " MB. You can change the cap using setHdd_extract.cap(new_cap).")
+	if(current_sizeMB > size_cap && interactive()){
+		cat("The variable `", name, "` has ", ifelse(TRUE_SIZE, "a", "an approximated"), 
+		    " size of ", addCommas(mysignif(current_sizeMB, r = 0)), " MB, greater than the 'no-confirm' cap of ",
+				addCommas(size_cap), " MB. FYI you can change the cap using setHdd_extract.cap(new_cap).\n", 
+				sep = "")
+		confirm = get_confirmation()
+		if(isFALSE(confirm)){
+			return(invisible(NULL))
+		}
 	}
 
 	# now extraction
@@ -904,26 +954,58 @@ hdd = function(dir){
 }
 
 
+get_confirmation = function(){
+	msg = ""
+	
+	while(!msg %in% c("y", "yes", "n", "no")){
+		msg = readline("Confirm extraction? y/yes or q/n/no: ")
+		msg = tolower(msg)
+	}
+	
+	msg %in% c("y", "yes")
+}
+
+
 #' Saves or appends a data set into a HDD file
 #'
-#' This function saves in-memory/HDD data sets into HDD repositories. Useful to append several data sets.
+#' This function saves in-memory/HDD data sets into HDD repositories. Useful to 
+#' append several data sets.
 #'
 #' @inherit hdd seealso
 #'
 #' @param x A data set.
 #' @param dir The HDD repository, i.e. the directory where the HDD data is.
-#' @param chunkMB If the data has to be split in several files of \code{chunkMB} sizes. Default is \code{Inf}.
-#' @param rowsPerChunk Integer, default is missing. Alternative to the argument \code{chunkMB}. If provided, the data will be split in several files of \code{rowsPerChunk} rows.
-#' @param compress Compression rate to be applied by \code{\link[fst]{write_fst}}. Default is 50.
+#' @param chunkMB If the data has to be split in several files of \code{chunkMB} 
+#' sizes. Default is \code{Inf}.
+#' @param rowsPerChunk Integer, default is missing. Alternative to the argument 
+#' \code{chunkMB}. If provided, the data will be split in several files of \code{rowsPerChunk} 
+#' rows.
+#' @param compress Compression rate to be applied by \code{\link[fst]{write_fst}}. 
+#' Default is 50.
 #' @param add Should the file be added to the existing repository? Default is \code{FALSE}.
-#' @param replace If \code{add = FALSE}, should any existing document be replaced? Default is \code{FALSE}.
-#' @param showWarning If the data \code{x} has no observation, then a warning is raised if \code{showWarning = TRUE}. By default, it occurs only if \code{write_hdd} is NOT called within a function.
+#' @param replace If \code{add = FALSE}, should any existing document be replaced? 
+#' Default is \code{FALSE}.
+#' @param showWarning If the data \code{x} has no observation, then a warning is 
+#' raised if \code{showWarning = TRUE}. By default, it occurs only if \code{write_hdd} 
+#' is NOT called within a function.
 #' @param ... Not currently used.
 #'
 #' @author Laurent Berge
 #'
 #' @details
-#' Creating a HDD data set with this function always create an additional file named \dQuote{_hdd.txt} in the HDD folder. This file contains summary information on the data: the number of rows, the number of variables, the first five lines and a log of how the HDD data set has been created. To access the log directly from \code{R}, use the function \code{\link[hdd]{origin}}.
+#' Creating a HDD data set with this function always create an additional file named 
+#' \dQuote{_hdd.txt} in the HDD folder. This file contains summary information on 
+#' the data: the number of rows, the number of variables, the first five lines and 
+#' a log of how the HDD data set has been created. To access the log directly from 
+#' \code{R}, use the function \code{\link[hdd]{origin}}.
+#' 
+#' @return 
+#' This function does not return anything in R. Instead it creates a folder
+#' on disk containing `.fst` files. These files represent the data that has been
+#' converted to the `hdd` format. 
+#' 
+#' You can then read the created data with the function [hdd()].
+#'
 #'
 #' @examples
 #'
@@ -945,7 +1027,8 @@ hdd = function(dir){
 #' base_hdd = hdd(hdd_path)
 #' summary(base_hdd) # => 8 files, 150 lines, 10.2KB on disk
 #'
-write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = FALSE, replace = FALSE, showWarning, ...){
+write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = FALSE, 
+                     replace = FALSE, showWarning, ...){
 	# data: the data (in memory or fst or hdd)
 	# dir: the hdd repository
 	# write hdd data
@@ -956,15 +1039,15 @@ write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = F
 	mc = match.call()
 
 	# controls
-	check_arg(dir, "singleCharacterMbt", "Argument 'dir' must be a valid path. REASON")
-	check_arg(chunkMB, "singleNumericGT0")
-	check_arg(rowsPerChunk, "singleIntegerGE1")
-	check_arg(compress, "singleIntegerGE0LE100")
-	check_arg(add, "singleLogical")
-	check_arg(replace, "singleLogical")
-	check_arg(showWarning, "singleLogical")
+	check_arg(dir, "character scalar mbt", .message = "Argument 'dir' must be a valid path.")
+	check_arg(chunkMB, "numeric scalar GT{0}")
+	check_arg(rowsPerChunk, "integer scalar GE{1}")
+	check_arg(compress, "integer scalar GE{0} LE{100}")
+	check_arg(add, "logical scalar")
+	check_arg(replace, "logical scalar")
+	check_arg(showWarning, "logical scalar")
 
-	control_variable(x, "data.frame", mustBeThere = TRUE)
+	check_arg(x, "data.frame mbt")
 
 	# hidden arguments
 	dots = list(...)
@@ -1027,14 +1110,14 @@ write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = F
 
 	memoryData = FALSE # flag indicating that the data is in memory
 	isKey = FALSE # flag of whether the data is sorted => Only for HDD files
-	if("fst_table" %in% class(x)){
+	if(inherits(x, "fst_table")){
 		file2copy = unclass(unclass(x)$meta)$path
-	} else if("hdd" %in% class(x)){
+	} else if(inherits(x, "hdd")){
 		file2copy = x$.fileName
 		if(!is.null(attr(x, "key"))){
 			isKey = TRUE
 		}
-	} else if("data.frame" %in% class(x)){
+	} else if(inherits(x, "data.frame")){
 		memoryData = TRUE
 	} else {
 		stop("The class of data is not supported. Only data.frame like data sets can be written in hdd.")
@@ -1099,7 +1182,7 @@ write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = F
 		} else if(!missing(rowsPerChunk)) {
 			n_chunks = ceiling(nrow(x) / rowsPerChunk)
 		} else {
-			if("fst_table" %in% class(x)){
+			if(inherits(x, "fst_table")){
 				# we estimate the size of x
 				n2check = min(1000, ceiling(nrow(x) / 10))
 				size_x_subset = as.numeric(object.size(x[1:n2check, ]) / 1e6) # in MB
@@ -1218,7 +1301,7 @@ write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = F
 				#	- they MUST create a new document
 				#	- hence we're sure the last line contains the word "file"
 				# we take the last line and update it
-				log_msg = paste0(nb_files_existing, " files ; ", numberFormat(nrow(x)), " rows ; ", call_txt)
+				log_msg = paste0(length(x$.nrow), " files ; ", numberFormat(nrow(x)), " rows ; ", call_txt)
 				# we replace the line
 				info[grepl("^[^;]+files? ;", info)] = log_msg
 
@@ -1249,18 +1332,28 @@ write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = F
 
 #' Sorts HDD objects
 #'
-#' This function sets a key to a HDD file. It creates a copy of the HDD file sorted by the key. Note that the sorting process is very time consuming.
+#' This function sets a key to a HDD file. It creates a copy of the HDD file sorted 
+#' by the key. Note that the sorting process is very time consuming.
 #'
 #' @inherit hdd seealso
 #' @inheritParams hdd_merge
 #'
 #' @param x A hdd file.
 #' @param key A character vector of the keys.
-#' @param chunkMB The size of chunks used to sort the data. Default is 500MB. The bigger this number the faster the sorting is (depends on your memory available though).
-#' @param verbose Numeric, default is 1. Whether to display information on the advancement of the algorithm. If equal to 0, nothing is displayed.
+#' @param chunkMB The size of chunks used to sort the data. Default is 500MB. The 
+#' bigger this number the faster the sorting is (depends on your memory available though).
+#' @param verbose Numeric, default is 1. Whether to display information on the advancement 
+#' of the algorithm. If equal to 0, nothing is displayed.
 #'
 #' @details
-#' This function is provided for convenience reason: it does the job of sorting the data and ensuring consistency across files, but it is very slow since it involves copying several times the entire data set. To be used parsimoniously.
+#' This function is provided for convenience reason: it does the job of sorting 
+#' the data and ensuring consistency across files, but it is very slow since it 
+#' involves copying several times the entire data set. To be used parsimoniously.
+#' 
+#' @return 
+#' This functions does not return anything in R, instead its result is a new
+#' folder populated with `.fst` files which represent a data set that can be loaded
+#' with the function [hdd()].
 #'
 #' @author Laurent Berge
 #'
@@ -1273,7 +1366,7 @@ write_hdd = function(x, dir, chunkMB = Inf, rowsPerChunk, compress = 50, add = F
 #' hdd_path = tempfile() # => folder where the data will be saved
 #' write_hdd(iris, hdd_path)
 #' # Let's add data to it
-#' for(i in 1:10) write_hdd(iris, hdd_path, add = TRUE)
+#' for(i in 1:5) write_hdd(iris, hdd_path, add = TRUE)
 #'
 #' base_hdd = hdd(hdd_path)
 #' summary(base_hdd)
@@ -1312,23 +1405,12 @@ hdd_setkey = function(x, key, newfile, chunkMB = 500, replace = FALSE, verbose =
 
 	# key can be a data.table call? No, not at the moment
 
-	check_arg(key, "characterVectorMbt")
-	check_arg(newfile, "singleCharacterMbt")
-	check_arg(chunkMB, "singleNumericGT0")
-	check_arg(replace, "singleLogical")
-	check_arg(verbose, "singleNumeric")
-
-	if(missing(x)){
-		stop("Argument 'x' must be a HDD object, but it is currently missing.")
-	}
-
-	if(!"hdd" %in% class(x)){
-		stop("x must be a HDD object.")
-	}
-
-	if(!all(key %in% names(x))){
-		stop("The key must be a variable name. This is not the case for ", enumerate_items(setdiff(key, names(x)), verb = FALSE), ".")
-	}
+	check_arg(x, "class(hdd) mbt")
+	check_arg_plus(key, "multi match", .choices = names(x), .message = "The key must be a variable name (partial matching on).")
+	check_arg(newfile, "character scalar mbt")
+	check_arg(chunkMB, "numeric scalar GT{0}")
+	check_arg(replace, "logical scalar")
+	check_arg(verbose, "numeric scalar")
 
 	newfile = clean_path(newfile)
 	if(dir.exists(newfile)){
@@ -1526,22 +1608,40 @@ hdd_setkey = function(x, key, newfile, chunkMB = 500, replace = FALSE, verbose =
 #'
 #' @param x A HDD object or a \code{data.frame}.
 #' @param y A data set either a data.frame of a HDD object.
-#' @param newfile Destination of the result, i.e., a destination folder that will receive the HDD data.
-#' @param chunkMB Numeric, default is missing. If provided, the data 'x' is split in chunks of 'chunkMB' MB and the merge is applied chunkwise.
-#' @param rowsPerChunk Integer, default is missing. If provided, the data 'x' is split in chunks of 'rowsPerChunk' rows and the merge is applied chunkwise.
+#' @param newfile Destination of the result, i.e., a destination folder that will 
+#' receive the HDD data.
+#' @param chunkMB Numeric, default is missing. If provided, the data 'x' is split 
+#' in chunks of 'chunkMB' MB and the merge is applied chunkwise.
+#' @param rowsPerChunk Integer, default is missing. If provided, the data 'x' is 
+#' split in chunks of 'rowsPerChunk' rows and the merge is applied chunkwise.
 #' @param all Default is \code{FALSE}.
 #' @param all.x Default is \code{all}.
 #' @param all.y Default is \code{all}.
 #' @param allow.cartesian Logical: whether to allow cartesian merge. Defaults to \code{FALSE}.
-#' @param replace Default is \code{FALSE}: if the destination folder already contains data, whether to replace it.
-#' @param verbose Numeric. Whether information on the advancement should be displayed. If equal to 0, nothing is displayed. By default it is equal to 1 if the size of \code{x} is greater than 1GB.
+#' @param replace Default is \code{FALSE}: if the destination folder already contains 
+#' data, whether to replace it.
+#' @param verbose Numeric. Whether information on the advancement should be displayed. 
+#' If equal to 0, nothing is displayed. By default it is equal to 1 if the size 
+#' of \code{x} is greater than 1GB.
 #'
 #' @details
-#' If \code{x} (resp \code{y}) is a HDD object, then the merging will be operated chunkwise, with the original chunks of the objects. To change the size of the chunks for \code{x}: you can use the argument \code{chunkMB} or \code{rowsPerChunk.}
+#' If \code{x} (resp \code{y}) is a HDD object, then the merging will be operated 
+#' chunkwise, with the original chunks of the objects. To change the size of the 
+#' chunks for \code{x}: you can use the argument \code{chunkMB} or \code{rowsPerChunk.}
 #'
-#' To change the chunk size of \code{y}, you can rewrite \code{y} with a new chunk size using \code{\link[hdd]{write_hdd}}.
+#' To change the chunk size of \code{y}, you can rewrite \code{y} with a new chunk 
+#' size using \code{\link[hdd]{write_hdd}}.
 #'
-#' Note that the merging operation could also be achieved with \code{\link[hdd]{hdd_slice}} (although it would require setting up a ad hoc function).
+#' Note that the merging operation could also be achieved with \code{\link[hdd]{hdd_slice}} 
+#' (although it would require setting up an ad hoc function).
+#' 
+#' @return 
+#' This function does not return anything. It applies the merging between
+#' two potentially large (out of memory) data set and saves them on disk at the location 
+#' of `newfile`, the destination folder which will be populated with .fst files
+#' representing chunks of the resulting merge.
+#' 
+#' To interact with the data (on disk) newly created, use the function [hdd()].
 #'
 #' @author Laurent Berge
 #'
@@ -1564,7 +1664,9 @@ hdd_setkey = function(x, key, newfile, chunkMB = 500, replace = FALSE, verbose =
 #' summary(base_merged)
 #' print(base_merged)
 #'
-hdd_merge = function(x, y, newfile, chunkMB, rowsPerChunk, all = FALSE, all.x = all, all.y = all, allow.cartesian = FALSE, replace = FALSE, verbose){
+hdd_merge = function(x, y, newfile, chunkMB, rowsPerChunk, all = FALSE, 
+                     all.x = all, all.y = all, allow.cartesian = FALSE, 
+										 replace = FALSE, verbose){
 	# Function to merge Hdd files
 	# It returns a HDD file
 	# x: hdd
@@ -1575,35 +1677,24 @@ hdd_merge = function(x, y, newfile, chunkMB, rowsPerChunk, all = FALSE, all.x = 
 
 	mc = match.call()
 
-	if(missing(x)) stop("Argument 'x' is required.")
-	if(missing(y)) stop("Argument 'y' is required.")
-	check_arg(newfile, "singleCharacter", "Argument 'newfile' must be a path to a directory. REASON")
+	check_arg(x, y, "class(hdd) | data.frame mbt")
+	check_arg(newfile, "character scalar", .message = "Argument 'newfile' must be a path to a directory.")
 
-	check_arg(all, "singleLogical")
-	check_arg(all.x, "singleLogical")
-	check_arg(all.y, "singleLogical")
-	check_arg(replace, "singleLogical")
-	check_arg(allow.cartesian, "singleLogical")
-	check_arg(verbose, "singleNumeric")
+	check_arg(all, all.x, all.y, replace, allow.cartesian, "logical scalar")
+	check_arg(verbose, "numeric scalar")
 
 	call_txt = deparse_long(match.call())
-
-	if(!is.data.frame(x)){
-		stop("x must be a HDD object or a data.frame!")
-	}
 
 	if(missing(verbose)){
 		verbose = object_size(x)/1e6 > 1000
 	}
 
 	y_hdd = FALSE
-	if("hdd" %in% class(y)){
+	if(inherits(y, "hdd")){
 		y_hdd = TRUE
-	} else if(!"data.frame" %in% class(y)){
-		stop("y must be either a data.frame or a HDD file.")
 	}
 
-	IS_HDD = "hdd" %in% class(x)
+	IS_HDD = inherits(x, "hdd")
 	if(!IS_HDD){
 		if(missing(rowsPerChunk) && missing(chunkMB)){
 			if(y_hdd){
@@ -1738,33 +1829,73 @@ hdd_merge = function(x, y, newfile, chunkMB, rowsPerChunk, all = FALSE, all.x = 
 
 #' Transforms text data into a HDD file
 #'
-#' Imports text data and saves it into a HDD file. It uses \code{\link[readr]{read_delim_chunked}} to extract the data. It also allows to preprocess the data.
+#' Imports text data and saves it into a HDD file. It uses \code{\link[readr]{read_delim_chunked}} 
+#' to extract the data. It also allows to preprocess the data.
 #'
 #' @inherit hdd seealso
 #'
-#' @param path Path where the data is.
+#' @param path Character vector that represents the path to the data. Note that 
+#' it can be equal to patterns if multiple files with the same name are to be imported 
+#' (if so it must be a fixed pattern, NOT a regular expression).
 #' @param dirDest The destination directory, where the new HDD data should be saved.
-#' @param chunkMB The chunk sizes in MB, defaults to 500MB. Instead of using this argument, you can alternatively use the argument \code{rowsPerChunk} which decides the size of chunks in terms of lines.
-#' @param rowsPerChunk Number of rows per chunk. By default it is missing: its value is deduced from argument \code{chunkMB} and the size of the file. If provided, replaces any value provided in \code{chunkMB}.
-#' @param col_names The column names, by default is uses the ones of the data set. If the data set lacks column names, you must provide them.
-#' @param col_types The column types, in the \code{readr} fashion. You can use \code{\link{guess_col_types}} to find them.
+#' @param chunkMB The chunk sizes in MB, defaults to 500MB. Instead of using this 
+#' argument, you can alternatively use the argument \code{rowsPerChunk} which decides 
+#' the size of chunks in terms of lines.
+#' @param rowsPerChunk Number of rows per chunk. By default it is missing: its value 
+#' is deduced from argument \code{chunkMB} and the size of the file. If provided, 
+#' replaces any value provided in \code{chunkMB}.
+#' @param col_names The column names, by default is uses the ones of the data set. 
+#' If the data set lacks column names, you must provide them.
+#' @param col_types The column types, in the \code{readr} fashion. You can use \code{\link{guess_col_types}} 
+#' to find them.
 #' @param nb_skip Number of lines to skip.
 #' @param delim The delimiter. By default the function tries to find the delimiter, but sometimes it fails.
-#' @param preprocessfun A function that is applied to the data before saving. Default is missing. Note that if a function is provided, it MUST return a data.frame, anything other than data.frame is ignored.
-#' @param replace If the destination directory already exists, you need to set the argument \code{replace=TRUE} to overwrite all the HDD files in it.
-#' @param verbose Integer. If verbose > 0, then the evolution of the importing process is reported. By default: equal to 1 when the expected number of chunks is greater than 1.
-#' @param ... Other arguments to be passed to \code{\link[readr]{read_delim_chunked}}, \code{quote = ""} can be interesting sometimes.
+#' @param preprocessfun A function that is applied to the data before saving. Default 
+#' is missing. Note that if a function is provided, it MUST return a data.frame, 
+#' anything other than data.frame is ignored.
+#' @param replace If the destination directory already exists, you need to set the 
+#' argument \code{replace=TRUE} to overwrite all the HDD files in it.
+#' @param verbose Logical scalar or `NULL` (default). If `TRUE`, then the evolution of 
+#' the importing process as well as the time to import are reported.
+#' If `NULL`, it becomes `TRUE` when the data to import is greater than 5GB or there are
+#' more than one chunk.
+#' @param encoding Character scalar containing the encoding of the file to be read.
+#' By default it is "UTF-8" and is passed to the `readr` function \code{\link[readr]{locale}} which is used
+#' in \code{\link[readr]{read_delim_chunked}} (the reading function). A common encoding in Western Europe is
+#' "ISO-8859-1" (simply use "file filename" in a non-Windows console to get the encoding).
+#' 
+#' Note that this argument is ignored if the argument `locale` is not NULL.
+#' @param locale Either `NULL` (default), either an object created with \code{\link[readr]{locale}}.
+#' This object will be passed to the reading function \code{\link[readr]{read_delim_chunked}} and handles
+#' how the data is imported.
+#' @param ... Other arguments to be passed to \code{\link[readr]{read_delim_chunked}}, 
+#' \code{quote = ""} can be interesting sometimes.
 #'
 #' @details
-#' This function uses \code{\link[readr]{read_delim_chunked}} from \code{readr} to read a large text file per chunk, and generate a HDD data set.
+#' This function uses \code{\link[readr]{read_delim_chunked}} from \code{readr} 
+#' to read a large text file per chunk, and generate a HDD data set.
 #'
-#' Since the main function for importation uses \code{readr}, the column specification must also be in readr's style (namely \code{\link[readr]{cols}} or \code{\link[readr]{cols_only}}).
+#' Since the main function for importation uses \code{readr}, the column specification 
+#' must also be in readr's style (namely \code{\link[readr]{cols}} or \code{\link[readr]{cols_only}}).
 #'
-#' By default a guess of the column types is made on the first 10,000 rows. The guess is the application of \code{\link[hdd]{guess_col_types}} on these rows.
+#' By default a guess of the column types is made on the first 10,000 rows. The 
+#' guess is the application of \code{\link[hdd]{guess_col_types}} on these rows.
 #'
-#' Note that by default, columns that are found to be integers are imported as double (in want of integer64 type in readr). Note that for large data sets, sometimes integer-like identifiers can be larger than 16 digits: in these case you must import them as character not to lose information.
+#' Note that by default, columns that are found to be integers are imported as double 
+#' (in want of integer64 type in readr). Note that for large data sets, sometimes 
+#' integer-like identifiers can be larger than 16 digits: in these case you must 
+#' import them as character not to lose information.
 #'
-#' The delimiter is found with the function \code{\link[hdd]{guess_delim}}, which uses the guessing from \code{\link[data.table]{fread}}. Note that fixed width delimited files are not supported.
+#' The delimiter is found with the function \code{\link[hdd]{guess_delim}}, which 
+#' uses the guessing from \code{\link[data.table]{fread}}. Note that fixed width 
+#' delimited files are not supported.
+#' 
+#' @return 
+#' This function does not return anything in R. Instead it creates a folder
+#' on disk containing `.fst` files. These files represent the data that has been
+#' imported and converted to the `hdd` format. 
+#' 
+#' You can then read the created data with the function [hdd()].
 #'
 #' @author Laurent Berge
 #'
@@ -1802,7 +1933,9 @@ hdd_merge = function(x, y, newfile, chunkMB, rowsPerChunk, all = FALSE, all.x = 
 #' summary(base_hdd_preprocess)
 #'
 #'
-txt2hdd = function(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_types, nb_skip, delim, preprocessfun, replace = FALSE, verbose, ...){
+txt2hdd = function(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_types, 
+                   nb_skip, delim, preprocessfun, replace = FALSE, 
+									 encoding = "UTF-8", verbose = 0, locale = NULL, ...){
 	# This function reads a large text file thanks to readr
 	# and trasforms it into a HDD document
 
@@ -1810,91 +1943,176 @@ txt2hdd = function(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_ty
 	# Control
 	#
 
-	check_arg(path, "singleCharacterMbt")
-	check_arg(dirDest, "singleCharacterMbt")
-	check_arg(chunkMB, "singleNumericGT0Mbt")
-	check_arg(col_names, "characterVector")
-	check_arg(nb_skip, "singleIntegerGE0")
-	check_arg(delim, "singleCharacter")
-	check_arg(replace, "singleLogical")
-	check_arg(verbose, "singleNumeric")
-	check_arg(rowsPerChunk, "singleIntegerGE1")
+	check_arg(path, dirDest, "character vector mbt no na")
+	check_arg(chunkMB, "numeric scalar GT{0}")
+	check_arg(col_names, "character vector no na")
+	check_arg(nb_skip, "integer scalar GE{0}")
+	check_arg(delim, encoding, "character scalar")
+	check_arg(replace, "logical scalar")
+	check_arg_plus(verbose, "NULL logical scalar conv")
+	check_arg(rowsPerChunk, "integer scalar GE{1}")
+	check_arg(preprocessfun, "function arg(1)")
+	check_arg(locale, "NULL class(locale)")
+
+	path_all = path
+
+	INFORM_PATTERN = FALSE
+	
+	time_start = Sys.time()
+
+	path_all_list = list()
+
+	for(i in seq_along(path_all)){
+		path = path_all[i]
+
+		if(path %in% c(".", "")) path = "./"
+
+		path_clean = gsub("\\\\", "/", path)
+		path_clean = gsub("/+", "/", path_clean)
+		root = gsub("/[^/]+$", "/", path_clean)
+
+		all_files = list.files(root, full.names = TRUE)
+		# Dropping directories
+		dir_names = setdiff(all_files, list.files(root, full.names = TRUE, recursive = TRUE))
+		all_files = setdiff(all_files, dir_names)
+
+		fpattern = gsub(".+/", "", path_clean)
+		all_files_clean = gsub(".+/", "", all_files)
+
+		qui = which(grepl(fpattern, all_files_clean, fixed = TRUE))
+		if(length(qui) == 0){
+			stop("The path '", path, "' leads to no file.")
+		} else if(length(qui) > 1){
+			INFORM_PATTERN = TRUE
+		}
+
+		path_all_list[[i]] = all_files[qui]
+
+	}
+
+	path_all = unique(unlist(path_all_list))
 
 	mc = match.call()
 
+	DO_PREPROCESS = !missing(preprocessfun)
 
-	DO_PREPROCESS = FALSE
-	if(!missing(preprocessfun)){
-		if(!is.function(preprocessfun)){
-			stop("Argument 'preprocessfun' must be a function.")
-		}
-		DO_PREPROCESS = TRUE
-	}
-
-	if(!missing(col_types) && (!length(class(col_types) == 1) || class(col_types) != "col_spec")){
-		stop("Argument 'col_types' must be a 'col_spec' object, obtained from, e.g., readr::cols() or readr::cols_only(), or from guess_cols_type()).")
+	if(!missing(col_types) && !inherits(col_types, "col_spec")){
+		stop("Argument 'col_types' must be a 'col_spec' object, obtained from, e.g., ", 
+		     "readr::cols() or readr::cols_only(), or from guess_cols_type()).")
 	}
 
 	#
 	# Preliminary stuff
 	#
 
-	# sample DT to get first information
-	first_lines = readr::read_lines(path, n_max = 10000)
-	sample_table = data.table::fread(paste0(first_lines, collapse = "\n"))
+	# If multiple files: we check the consistency
+	n = length(path_all)
+	fileSize_all = numeric(n)
+	nb_col_all = numeric(n)
+	col_names_all = list()
 
-	nb_col = ncol(sample_table)
+	for(i in seq_along(path_all)){
+		path = path_all[i]
 
-	if(missing(col_types)){
-		col_types = guess_col_types(sample_table, col_names)
-	} else if(length(col_types$cols) == nb_col){
+		# sample DT to get first information
+		first_lines = readr::read_lines(path, n_max = 10000)
+		sample_table = data.table::fread(paste0(first_lines, collapse = "\n"))
+
+		nb_col = ncol(sample_table)
+		nb_col_all[i] = nb_col
+
+		if(missing(col_types)){
+			col_types = guess_col_types(sample_table, col_names)
+		} else if(length(col_types$cols) == nb_col){
+			if(missing(col_names)){
+				col_names = names(col_types$cols)
+			}
+		}
+
+		# are there column names?
+		is_col_names = ifelse(all(grepl("^V", names(sample_table))), FALSE, TRUE)
+
+		if(missing(nb_skip)){
+			if(is_col_names){
+				nb_skip = 1
+			} else {
+				nb_skip = 0
+			}
+		}
+
+		prefix = ifelse(n == 1, "", paste0("[file ", i, ": ", path, "] "))
 		if(missing(col_names)){
-			col_names = names(col_types$cols)
-		}
-	}
-
-	# are there column names?
-	is_col_names = ifelse(all(grepl("^V", names(sample_table))), FALSE, TRUE)
-
-	if(missing(nb_skip)){
-		if(is_col_names){
-			nb_skip = 1
+			if(!is_col_names){
+				stop(prefix, "The text file has no header, you MUST provide ", nb_col, " column names (col_names).")
+			} else {
+				col_names = names(sample_table)
+			}
 		} else {
-			nb_skip = 0
+			if(length(col_names) != nb_col){
+				if(i > 1){
+					stop(prefix, "The data has ", nb_col, " columns instead of ", 
+					     length(col_names), " like the previous files.")
+				} else {
+					stop(prefix, "The variable col_names should be of length ", nb_col, 
+					     ". (At the moment it is of length ", length(col_names), ").")
+				}
+
+			}
 		}
+
+		col_names_all[[i]] = col_names
+
+		#
+		# finding out the delimiter
+		#
+
+		if(i == 1){
+			if(missing(delim)){
+				fl = head(first_lines, 100)
+				attr(fl, "from_hdd") = TRUE
+				delim = guess_delim(fl)
+				if(is.null(delim)){
+					stop("The delimiter could not be automatically determined. Please provide argument 'delim'. FYI, here is the first line:\n", first_lines[1])
+				}
+			}
+			delimiter = delim
+		}
+
+		# Just for information on nber of chunks
+		fileSize_all[i] = file.size(path)
+
 	}
 
-	if(missing(col_names)){
-		if(!is_col_names){
-			stop("The text file has no header, you MUST provide ", nb_col, " column names (col_names).")
-		} else {
-			col_names = names(sample_table)
-		}
-	} else {
-		if(length(col_names) != nb_col){
-			stop("The variable col_names should be of length ", nb_col, ". (At the moment it is of length ", length(col_names), ".")
-		}
+	fileSize = sum(fileSize_all) / 1e6
+	
+	if(is.null(verbose) && fileSize > 2000){
+		verbose = TRUE
 	}
 
-	#
-	# finding out the delimiter
-	#
-
-	if(missing(delim)){
-		fl = head(first_lines, 100)
-		attr(fl, "from_hdd") = TRUE
-		delim = guess_delim(fl)
-		if(is.null(delim)){
-			stop("The delimiter could not be automatically determined. Please provide argument 'delim'. FYI, here is the first line:\n", first_lines[1])
-		}
+	# Consistency across multiple files
+	if(!all(nb_col_all == nb_col_all[1])) {
+		qui = which.max(nb_col_all != nb_col_all[1])
+		stop("The number of columns across files differ: file 1 has ", nb_col_all[1], 
+		     " columns while file ", qui, " has ", nb_col_all[qui], 
+				 " columns (", path_all[1], " vs ", path_all[qui], ").")
 	}
-	delimiter = delim
 
-	# Just for information on nber of chunks
-	fileSize = file.size(path) / 1e6
+	if(!all(sapply(col_names_all, function(x) x == col_names_all[[1]]))) {
+		qui = which.max(sapply(col_names_all, function(x) x != col_names_all[[1]]))
+		stop("The column names across files differ:\n File 1:", 
+		     paste(col_names_all[[1]], collapse = ", "), "\nFile ", qui, ": ", 
+				 paste(col_names_all[[qui]], collapse = ", "))
+	}
+
+	# Information on the number of files found (if needed)
+	if(INFORM_PATTERN && isTRUE(verbose)){
+		message(n, " files (", signif_plus(fileSize), " MB)")
+	}
 
 	if(!missing(rowsPerChunk)){
-		if("chunkMB" %in% names(mc)) warning("The value of argument 'chunkMB' is neglected since argument 'rowsPerChunk' is provided.")
+		if("chunkMB" %in% names(mc)){
+			warning("The value of argument 'chunkMB' is neglected since argument 'rowsPerChunk' is provided.")
+		}
 
 		if(rowsPerChunk > 1e9){
 			# prevents readr hard bug
@@ -1906,9 +2124,15 @@ txt2hdd = function(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_ty
 
 		nbChunks_approx = ceiling(fileSize / chunkMB_approx)
 
-		if(missing(verbose)) verbose = nbChunks_approx > 1
+		if(is.null(verbose)){
+			verbose = nbChunks_approx > 1
+		}
 
-		if(verbose > 0) message("Approx. number of chunks: ", nbChunks_approx, " (", ifelse(chunkMB_approx <= 1, "< 1", paste0("~", addCommas(chunkMB_approx))), "MB per chunk)")
+		if(verbose){
+			message("Approx. number of chunks: ", nbChunks_approx, " (", 
+			        ifelse(chunkMB_approx <= 1, "< 1", paste0("~", addCommas(chunkMB_approx))), 
+							"MB per chunk)")
+		}
 
 	} else {
 		nbChunks_approx = fileSize / chunkMB
@@ -1918,9 +2142,14 @@ txt2hdd = function(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_ty
 		# Limit of 500M lines
 		rowsPerChunk = min(rowsPerChunk, 500e6)
 
-		if(missing(verbose)) verbose = nbChunks_approx > 1
+		if(is.null(verbose)){
+			verbose = nbChunks_approx > 1
+		}
 
-		if(verbose > 0) message("Approx. number of chunks: ", ceiling(nbChunks_approx), " (", addCommas(rowsPerChunk), " rows per chunk)")
+		if(verbose > 0){
+			message("Approx. number of chunks: ", ceiling(nbChunks_approx), " (", 
+			        addCommas(rowsPerChunk), " rows per chunk)")
+		}
 	}
 
 
@@ -1976,11 +2205,24 @@ txt2hdd = function(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_ty
 		write_hdd(x, dir = REP_DEST, replace = TRUE, add = ADD, call_txt = CALL_TXT)
 
 		if(!ADD) ADD <<- TRUE
-
-
 	}
+	
+	# the locale + the encoding
+	if(is.null(locale)){
+		my_locale = readr::locale(encoding = encoding)
+	} else {
+		my_locale = locale
+	}	
 
-	readr::read_delim_chunked(file = path, callback = funPerChunk, chunk_size = rowsPerChunk, col_names = col_names, col_types = col_types, skip = nb_skip, delim = delimiter, ...)
+	for(path in path_all){
+		readr::read_delim_chunked(file = path, callback = funPerChunk, chunk_size = rowsPerChunk, 
+		                          col_names = col_names, col_types = col_types, locale = my_locale,
+															skip = nb_skip, delim = delimiter, ...)
+	}
+	
+	if(verbose){
+		message("Importation in ", format_difftime(time_start), ".")
+	}
 
 	invisible(NULL)
 }
@@ -2038,8 +2280,8 @@ guess_col_types = function(dt_or_path, col_names, n = 10000){
 		stop("Object dt_or_path must be a data.frame or a path.")
 	}
 
-	check_arg(col_names, "characterVector")
-	check_arg(n, "singleIntegerGE1")
+	check_arg(col_names, "character vector")
+	check_arg(n, "integer scalar GE{1}")
 
 	# The column names
 	if(missing(col_names)){
@@ -2052,7 +2294,7 @@ guess_col_types = function(dt_or_path, col_names, n = 10000){
 	}
 
 	# guessing the types of each column
-	all_classes = sapply(sample_dt, class)
+	all_classes = sapply(sample_dt, function(x) tolower(class(x)[length(class(x))]))
 	qui_int = which(all_classes == "integer")
 	qui_int64 = which(all_classes == "integer64")
 	qui_double = which(all_classes == "double")
@@ -2065,7 +2307,7 @@ guess_col_types = function(dt_or_path, col_names, n = 10000){
 
 	for(v in qui_character){
 		new_type = readr::guess_parser(sample_dt[[v]])
-		if(grepl("date", new_type)){
+		if(any(grepl("(?i)date", new_type))){
 			all_classes[v] = "date"
 		}
 	}
@@ -2105,7 +2347,7 @@ guess_col_types = function(dt_or_path, col_names, n = 10000){
 guess_delim = function(path){
 
 
-	check_arg(path, "characterVector", "Argument path must be a valid path. REASON")
+	check_arg(path, "character vector", .message = "Argument path must be a valid path.")
 
 	# importing a sample
 	FROM_HDD = FALSE
@@ -2178,10 +2420,8 @@ guess_delim = function(path){
 #' iris_path = tempfile()
 #' fwrite(iris, iris_path)
 #'
-#' \donttest{
 #' # The first lines of the text file on viewer
 #' peek(iris_path)
-#' }
 #'
 #' # displaying the first lines:
 #' peek(iris_path, onlyLines = TRUE)
@@ -2194,13 +2434,12 @@ peek = function(path, onlyLines = FALSE, n, view = TRUE){
 
 	# Controls
 
-	check_arg(path, "singleCharacterMbt")
-	check_arg(onlyLines, "singleLogical")
-	check_arg(view, "singleLogical")
-	check_arg(n, "singleIntegerGE1")
+	check_arg(path, "character scalar mbt")
+	check_arg(onlyLines, "logical scalar")
+	check_arg(view, "logical scalar")
+	check_arg(n, "integer scalar GE{1}")
 
 	if(!file.exists(path)) stop("The path does not lead to an existing file.")
-
 
 	if(missing(n)){
 		if(onlyLines){
@@ -2242,10 +2481,11 @@ peek = function(path, onlyLines = FALSE, n, view = TRUE){
 
 	dt_name = paste0("peek_", gsub("\\.[^\\.]+$", "", gsub("^.+/", "", clean_path(path))))
 
-	if(view) {
+	if(view && interactive()){
 		myView <- get("View", envir = as.environment("package:utils"))
 		myView(x = sample_dt, title = dt_name)
 	}
+
 	invisible(sample_dt)
 }
 
@@ -2286,7 +2526,7 @@ peek = function(path, onlyLines = FALSE, n, view = TRUE){
 #'
 origin = function(x){
 
-	if(!"hdd" %in% class(x)){
+	if(!inherits(x, "hdd")){
 		stop("Argument 'x' must be a HDD object.")
 	}
 
@@ -2384,7 +2624,8 @@ print.hdd = function(x, ...){
 
 #' Summary information for HDD objects
 #'
-#' Provides summary information -- i.e. dimension, size on disk, path, number of slices -- of hard drive data sets (HDD).
+#' Provides summary information -- i.e. dimension, size on disk, path, number of 
+#' slices -- of hard drive data sets (HDD).
 #'
 #' @inheritParams dim.hdd
 #' @inherit hdd examples
@@ -2394,11 +2635,17 @@ print.hdd = function(x, ...){
 #' @param ... Not currently used.
 #'
 #' @details
-#' Displays concisely general information on the HDD object: its size on disk, the number of files it is made of, its location on disk and the number of rows and columns.
+#' Displays concisely general information on the HDD object: its size on disk, the 
+#' number of files it is made of, its location on disk and the number of rows and columns.
 #'
-#' Note that each HDD object contain the text file \dQuote{_hdd.txt} in their folder also containing this information.
+#' Note that each HDD object contain the text file \dQuote{_hdd.txt} in their folder 
+#' also containing this information.
 #'
 #' To obtain how the HDD object was constructed, use function \code{\link[hdd]{origin}}.
+#' 
+#' @return 
+#' This function does not return anything. It only prints general information 
+#' on the data set in the console.
 #'
 #' @author Laurent Berge
 #'

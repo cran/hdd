@@ -9,11 +9,17 @@
 #### Setters/Getters ####
 ####
 
+
 #' Sets/gets the size cap when extracting hdd data
 #'
-#' Sets/gets the default size cap when extracting HDD variables with \code{\link[hdd]{cash-.hdd}} or when importing full HDD data sets with \code{\link[hdd]{readfst}}.. If the size exceeds the cap, then an error is raised, which can be bypassed by using the argument \code{confirm}.
+#' Sets/gets the default size cap when extracting HDD variables with \code{\link[hdd]{cash-.hdd}} or when importing full HDD data sets with \code{\link[hdd]{readfst}}.
 #'
-#' @param sizeMB Size cap in MB. Default to 1000.
+#' @param sizeMB Size cap in MB. Default is 3000.
+#'
+#' @details
+#' In \code{\link[hdd]{readfst}}, if the expected size of the data set exceeds the cap then, 
+#' in interactive mode, a confirmation is asked. When not in interactive mode, no confirmation is asked. 
+#' This can also be bypassed by using the argument \code{confirm}.
 #'
 #' @return
 #' The size cap, a numeric scalar.
@@ -32,30 +38,29 @@
 #' # we can extract the data from the 11 files with '$':
 #' pl = base_hdd$Sepal.Length
 #'
-#' \donttest{
 #' #
 #' # Illustration of the protection mechanism:
 #' #
 #'
-#' # By default you cannot extract a variable with '$'
-#' # when its size would be too large (default is greater than 1000MB)
+#' # By default when extracting a variable with '$'
+#' # and the size exceeds the cap (default is greater than 3GB)
+#' # a confirmation is needed.
 #' # You can set the cap with setHdd_extract.cap.
 #'
-#' # Following code raises an error:
+#' # Following code asks a confirmation:
 #' setHdd_extract.cap(sizeMB = 0.005) # new cap of 5KB
-#' pl = base_hdd$Sepal.Length
+#' try(pl <- base_hdd$Sepal.Length)
 #'
 #' # To extract the variable without changing the cap:
 #' pl = base_hdd[, Sepal.Length] # => no size control is performed
 #'
 #' # Resetting the default cap
 #' setHdd_extract.cap()
-#' }
 #'
 #'
-setHdd_extract.cap = function(sizeMB = 1000){
+setHdd_extract.cap = function(sizeMB = 3000){
 
-	check_arg(sizeMB, "singleNumericGT0")
+	check_arg(sizeMB, "numeric scalar GT{0}")
 
 	options("hdd_extract.cap" = sizeMB)
 }
@@ -73,12 +78,14 @@ getHdd_extract.cap = function(){
 	x
 }
 
+
 ####
 #### HDD utilities ####
 ####
 
+
 object_size = function(x){
-	if("hdd" %in% class(x)){
+	if(inherits(x, "hdd")){
 		res = tail(x$.size_cum, 1)
 	} else {
 		res = utils::object.size(x)
@@ -184,7 +191,7 @@ find_n_split = function(x, key, nfiles){
 obs = function(x, file){
 	# Finds the observation numbers of a hdd document by file
 
-	if(!"hdd" %in% class(x)){
+	if(!inherits(x, "hdd")){
 		stop("x must be a hdd file.")
 	}
 
@@ -193,7 +200,7 @@ obs = function(x, file){
 	}
 
 	n = length(x$.nrow)
-	control_variable(file, "integerVectorGT0")
+	check_arg(file, "integer vector GT{0}")
 	if(any(file > n)){
 		stop("file cannot exceed ", n, ".")
 	}
@@ -224,6 +231,63 @@ clean_path = function(x){
 ####
 #### Other Utilities ####
 ####
+
+
+is_numeric_in_char = function(x){
+  res = tryCatch(as.numeric(x), warning = function(x) "not numeric")
+  !identical(res, "not numeric")
+}
+
+format_difftime = function(x){
+  # x: number of seconds or difftime or time
+
+  if(is.character(x)){
+    if(is_numeric_in_char(x)){
+      # x: number of seconds
+      x = as.numeric(x)
+    } else {
+      # When the data is not conform:
+      # - should there be an error?
+      # - should I return NA?
+
+      return(rep("(difftime: NA)", length(x)))
+    }
+  }
+
+  res = character(length(x))
+
+  for(i in seq_along(x)){
+    xi = x[i]
+    
+    if(inherits(xi, "POSIXt")){
+      xi = Sys.time() - xi
+    }
+    
+    if(inherits(xi, "difftime")){
+      xi = as.double(xi, units = "secs")
+    }
+    
+    if(xi > 3600){
+			n_hour = xi %/% 3600
+			rest_s = floor(xi %% 3600)
+			n_min = rest_s %/% 60
+			res[i] = paste0(n_hour, " hour", ifelse(n_hour > 1, "s", ""), 
+			                " ", sprintf("%02i", n_min), " min")
+		} else if(xi > 60){
+			n_min = xi %/% 60
+			n_sec = floor(xi %% 60)
+			res[i] = paste0(n_min, " min ", sprintf("%02i", n_sec), " sec")
+		} else if(xi > 0.9){
+			res[i] = paste0(fsignif(xi, 2, 1), "s")
+		} else if(xi > 1e-3){
+			res[i] = paste0(fsignif(xi * 1000, 2, 0), "ms")
+		} else {
+			res[i] = "<1 ms"
+		}
+	}
+  
+  res
+}
 
 addCommas = function(x){
 
@@ -299,7 +363,7 @@ checkVector = function(x){
 	if(is.vector(x)){
 		return(TRUE)
 	} else {
-		if(class(x) %in% c("integer", "numeric", "character", "factor", "Date") && is.null(dim(x))){
+		if(any(class(x) %in% c("integer", "numeric", "character", "factor", "Date")) && is.null(dim(x))){
 			return(TRUE)
 		}
 	}
@@ -366,14 +430,19 @@ ggrepl = function(pattern, x){
 }
 
 
+deparse_long = function (x){
+	dep_x = deparse(x)
+	if (length(dep_x) == 1) {
+		return(dep_x)
+	} else {
+		return(paste(gsub("^ +", "", dep_x), collapse = ""))
+	}
+}
 
 
-
-
-
-
-
-
+is_r_check = function(){
+	any(grepl("_R_CHECK", names(Sys.getenv()), fixed = TRUE))
+}
 
 
 

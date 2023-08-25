@@ -4,47 +4,103 @@
 \alias{txt2hdd}
 \title{Transforms text data into a HDD file}
 \usage{
-txt2hdd(path, dirDest, chunkMB = 500, rowsPerChunk, col_names, col_types,
-  nb_skip, delim, preprocessfun, replace = FALSE, verbose, ...)
+txt2hdd(
+  path,
+  dirDest,
+  chunkMB = 500,
+  rowsPerChunk,
+  col_names,
+  col_types,
+  nb_skip,
+  delim,
+  preprocessfun,
+  replace = FALSE,
+  encoding = "UTF-8",
+  verbose = 0,
+  locale = NULL,
+  ...
+)
 }
 \arguments{
-\item{path}{Path where the data is.}
+\item{path}{Character vector that represents the path to the data. Note that
+it can be equal to patterns if multiple files with the same name are to be imported
+(if so it must be a fixed pattern, NOT a regular expression).}
 
 \item{dirDest}{The destination directory, where the new HDD data should be saved.}
 
-\item{chunkMB}{The chunk sizes in MB, defaults to 500MB. Instead of using this argument, you can alternatively use the argument \code{rowsPerChunk} which decides the size of chunks in terms of lines.}
+\item{chunkMB}{The chunk sizes in MB, defaults to 500MB. Instead of using this
+argument, you can alternatively use the argument \code{rowsPerChunk} which decides
+the size of chunks in terms of lines.}
 
-\item{rowsPerChunk}{Number of rows per chunk. By default it is missing: its value is deduced from argument \code{chunkMB} and the size of the file. If provided, replaces any value provided in \code{chunkMB}.}
+\item{rowsPerChunk}{Number of rows per chunk. By default it is missing: its value
+is deduced from argument \code{chunkMB} and the size of the file. If provided,
+replaces any value provided in \code{chunkMB}.}
 
-\item{col_names}{The column names, by default is uses the ones of the data set. If the data set lacks column names, you must provide them.}
+\item{col_names}{The column names, by default is uses the ones of the data set.
+If the data set lacks column names, you must provide them.}
 
-\item{col_types}{The column types, in the \code{readr} fashion. You can use \code{\link{guess_col_types}} to find them.}
+\item{col_types}{The column types, in the \code{readr} fashion. You can use \code{\link{guess_col_types}}
+to find them.}
 
 \item{nb_skip}{Number of lines to skip.}
 
 \item{delim}{The delimiter. By default the function tries to find the delimiter, but sometimes it fails.}
 
-\item{preprocessfun}{A function that is applied to the data before saving. Default is missing. Note that if a function is provided, it MUST return a data.frame, anything other than data.frame is ignored.}
+\item{preprocessfun}{A function that is applied to the data before saving. Default
+is missing. Note that if a function is provided, it MUST return a data.frame,
+anything other than data.frame is ignored.}
 
-\item{replace}{If the destination directory already exists, you need to set the argument \code{replace=TRUE} to overwrite all the HDD files in it.}
+\item{replace}{If the destination directory already exists, you need to set the
+argument \code{replace=TRUE} to overwrite all the HDD files in it.}
 
-\item{verbose}{Integer. If verbose > 0, then the evolution of the importing process is reported. By default: equal to 1 when the expected number of chunks is greater than 1.}
+\item{encoding}{Character scalar containing the encoding of the file to be read.
+By default it is "UTF-8" and is passed to the \code{readr} function \code{\link[readr]{locale}} which is used
+in \code{\link[readr]{read_delim_chunked}} (the reading function). A common encoding in Western Europe is
+"ISO-8859-1" (simply use "file filename" in a non-Windows console to get the encoding).
 
-\item{...}{Other arguments to be passed to \code{\link[readr]{read_delim_chunked}}, \code{quote = ""} can be interesting sometimes.}
+Note that this argument is ignored if the argument \code{locale} is not NULL.}
+
+\item{verbose}{Logical scalar or \code{NULL} (default). If \code{TRUE}, then the evolution of
+the importing process as well as the time to import are reported.
+If \code{NULL}, it becomes \code{TRUE} when the data to import is greater than 5GB or there are
+more than one chunk.}
+
+\item{locale}{Either \code{NULL} (default), either an object created with \code{\link[readr]{locale}}.
+This object will be passed to the reading function \code{\link[readr]{read_delim_chunked}} and handles
+how the data is imported.}
+
+\item{...}{Other arguments to be passed to \code{\link[readr]{read_delim_chunked}},
+\code{quote = ""} can be interesting sometimes.}
+}
+\value{
+This function does not return anything in R. Instead it creates a folder
+on disk containing \code{.fst} files. These files represent the data that has been
+imported and converted to the \code{hdd} format.
+
+You can then read the created data with the function \code{\link[=hdd]{hdd()}}.
 }
 \description{
-Imports text data and saves it into a HDD file. It uses \code{\link[readr]{read_delim_chunked}} to extract the data. It also allows to preprocess the data.
+Imports text data and saves it into a HDD file. It uses \code{\link[readr]{read_delim_chunked}}
+to extract the data. It also allows to preprocess the data.
 }
 \details{
-This function uses \code{\link[readr]{read_delim_chunked}} from \code{readr} to read a large text file per chunk, and generate a HDD data set.
+This function uses \code{\link[readr]{read_delim_chunked}} from \code{readr}
+to read a large text file per chunk, and generate a HDD data set.
 
-Since the main function for importation uses \code{readr}, the column specification must also be in readr's style (namely \code{\link[readr]{cols}} or \code{\link[readr]{cols_only}}).
+Since the main function for importation uses \code{readr}, the column specification
+must also be in readr's style (namely \code{\link[readr]{cols}} or \code{\link[readr]{cols_only}}).
 
-By default a guess of the column types is made on the first 10,000 rows. The guess is the application of \code{\link[hdd]{guess_col_types}} on these rows.
+By default a guess of the column types is made on the first 10,000 rows. The
+guess is the application of \code{\link[hdd]{guess_col_types}} on these rows.
 
-Note that by default, columns that are found to be integers are imported as double (in want of integer64 type in readr). Note that for large data sets, sometimes integer-like identifiers can be larger than 16 digits: in these case you must import them as character not to lose information.
+Note that by default, columns that are found to be integers are imported as double
+(in want of integer64 type in readr). Note that for large data sets, sometimes
+integer-like identifiers can be larger than 16 digits: in these case you must
+import them as character not to lose information.
 
-The delimiter is found with the function \code{\link[hdd]{guess_delim}}, which uses the guessing from \code{\link[data.table]{fread}}. Note that fixed width delimited files are not supported.
+The delimiter is found with the function \code{\link[hdd]{guess_delim}}, which
+uses the guessing from \code{\link[data.table]{fread}}. Note that fixed width
+delimited files are not supported.
 }
 \examples{
 
@@ -82,13 +138,19 @@ summary(base_hdd_preprocess)
 
 }
 \seealso{
-See \code{\link[hdd]{hdd}}, \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}} for the extraction and manipulation of out of memory data. For importation of HDD data sets from text files: see \code{\link[hdd]{txt2hdd}}.
+See \code{\link[hdd]{hdd}}, \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}}
+for the extraction and manipulation of out of memory data. For importation of
+HDD data sets from text files: see \code{\link[hdd]{txt2hdd}}.
 
-See \code{\link[hdd]{hdd_slice}} to apply functions to chunks of data (and create HDD objects) and \code{\link[hdd]{hdd_merge}} to merge large files.
+See \code{\link[hdd]{hdd_slice}} to apply functions to chunks of data (and create
+HDD objects) and \code{\link[hdd]{hdd_merge}} to merge large files.
 
-To create/reshape HDD objects from memory or from other HDD objects, see \code{\link[hdd]{write_hdd}}.
+To create/reshape HDD objects from memory or from other HDD objects, see
+\code{\link[hdd]{write_hdd}}.
 
-To display general information from HDD objects: \code{\link[hdd]{origin}}, \code{\link[hdd]{summary.hdd}}, \code{\link[hdd]{print.hdd}}, \code{\link[hdd]{dim.hdd}} and \code{\link[hdd]{names.hdd}}.
+To display general information from HDD objects: \code{\link[hdd]{origin}},
+\code{\link[hdd]{summary.hdd}}, \code{\link[hdd]{print.hdd}},
+\code{\link[hdd]{dim.hdd}} and \code{\link[hdd]{names.hdd}}.
 }
 \author{
 Laurent Berge

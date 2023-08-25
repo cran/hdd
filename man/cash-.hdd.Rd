@@ -38,16 +38,16 @@ summary(base_hdd) # => 11 files
 # we can extract the data from the 11 files with '$':
 pl = base_hdd$Sepal.Length
 
-\donttest{
 #
 # Illustration of the protection mechanism:
 #
 
-# By default you cannot extract a variable with '$'
-# when its size would be too large (default is greater than 1000MB)
+# By default when extracting a variable with '$'
+# and the size exceeds the cap (default is greater than 3GB)
+# a confirmation is needed.
 # You can set the cap with setHdd_extract.cap.
 
-# Following code raises an error:
+# Following asks for confirmation in interactive mode:
 setHdd_extract.cap(sizeMB = 0.005) # new cap of 5KB
 pl = base_hdd$Sepal.Length
 
@@ -56,17 +56,22 @@ pl = base_hdd[, Sepal.Length] # => no size control is performed
 
 # Resetting the default cap
 setHdd_extract.cap()
-}
 
 }
 \seealso{
-See \code{\link[hdd]{hdd}}, \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}} for the extraction and manipulation of out of memory data. For importation of HDD data sets from text files: see \code{\link[hdd]{txt2hdd}}.
+See \code{\link[hdd]{hdd}}, \code{\link[hdd]{sub-.hdd}} and \code{\link[hdd]{cash-.hdd}}
+for the extraction and manipulation of out of memory data. For importation of
+HDD data sets from text files: see \code{\link[hdd]{txt2hdd}}.
 
-See \code{\link[hdd]{hdd_slice}} to apply functions to chunks of data (and create HDD objects) and \code{\link[hdd]{hdd_merge}} to merge large files.
+See \code{\link[hdd]{hdd_slice}} to apply functions to chunks of data (and create
+HDD objects) and \code{\link[hdd]{hdd_merge}} to merge large files.
 
-To create/reshape HDD objects from memory or from other HDD objects, see \code{\link[hdd]{write_hdd}}.
+To create/reshape HDD objects from memory or from other HDD objects, see
+\code{\link[hdd]{write_hdd}}.
 
-To display general information from HDD objects: \code{\link[hdd]{origin}}, \code{\link[hdd]{summary.hdd}}, \code{\link[hdd]{print.hdd}}, \code{\link[hdd]{dim.hdd}} and \code{\link[hdd]{names.hdd}}.
+To display general information from HDD objects: \code{\link[hdd]{origin}},
+\code{\link[hdd]{summary.hdd}}, \code{\link[hdd]{print.hdd}},
+\code{\link[hdd]{dim.hdd}} and \code{\link[hdd]{names.hdd}}.
 }
 \author{
 Laurent Berge

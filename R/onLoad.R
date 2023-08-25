@@ -4,7 +4,13 @@
 .onLoad <- function(libname, pkgname){
 	# setting the two options
 
-	options("hdd_extract.cap" = 1000)
+	setHdd_extract.cap()
+	
+	if(is_r_check()){
+		data.table::setDTthreads(1)
+		fst::threads_fst(1)
+		options(readr.num_threads = 1)
+	}
 
 	invisible()
 }
